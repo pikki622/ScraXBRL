@@ -90,27 +90,21 @@ class GetFilings:
 		link = settings.LINK_URL.format(self.ticker_symbol, q_or_k)
 		r = requests.get(link)
 		s = BS(r.text)
-		if self.validate_page(s):
-			return s
-		else:
-			return False
+		return s if self.validate_page(s) else False
 
 	def get_10q_list(self):
-		html = self.get_main_html('10-Q')
-		if html:
-			for link in html.find_all('a', {'id': 'documentsbutton'}):
-				doc_url = 'https://www.sec.gov' + link['href']
-				self.filings['10q_list'].append(doc_url)
-			for link in html.find_all('a', {'id': 'interactiveDataBtn'}):
-				doc_url = 'https://www.sec.gov' + link['href']
-				self.filings['10q_xl_list'].append(doc_url)
-		else:
+		if not (html := self.get_main_html('10-Q')):
 			return False
+		for link in html.find_all('a', {'id': 'documentsbutton'}):
+			doc_url = 'https://www.sec.gov' + link['href']
+			self.filings['10q_list'].append(doc_url)
+		for link in html.find_all('a', {'id': 'interactiveDataBtn'}):
+			doc_url = 'https://www.sec.gov' + link['href']
+			self.filings['10q_xl_list'].append(doc_url)
 
 
 	def get_10k_list(self):
-		html = self.get_main_html('10-K')
-		if html:
+		if html := self.get_main_html('10-K'):
 			for link in html.find_all('a', {'id': 'documentsbutton'}):
 				doc_url = 'https://www.sec.gov' + link['href']
 				self.filings['10k_list'].append(doc_url)
@@ -123,11 +117,10 @@ class GetFilings:
 		try:
 			xml_link = s.find_all('table', {'class': 'tableFile', 'summary': 'Data Files'})[0].find_all('tr')[i].find_all('td')[2].find('a')['href']
 			xtname = ['.xml', '.xsd']
-			if os.path.splitext(xml_link)[1] in xtname:
-				xml_link = 'https://www.sec.gov' + xml_link
-				return xml_link
-			else:
+			if os.path.splitext(xml_link)[1] not in xtname:
 				return False
+			xml_link = f'https://www.sec.gov{xml_link}'
+			return xml_link
 		except IndexError:
 			return False
 
@@ -136,11 +129,10 @@ class GetFilings:
 		try:
 			html_link = s.find_all('table', {'class': 'tableFile', 'summary': 'Document Format Files'})[0].find_all('tr')[1].find('a')['href']
 			xtname = ['.html', '.htm']
-			if os.path.splitext(html_link)[1] in xtname:
-				html_link = 'https://www.sec.gov' + html_link
-				return html_link
-			else:
+			if os.path.splitext(html_link)[1] not in xtname:
 				return False
+			html_link = f'https://www.sec.gov{html_link}'
+			return html_link
 		except IndexError:
 			return False
 
@@ -154,11 +146,10 @@ class GetFilings:
 					link_idx = idx + 1
 			txt_link = txt_link[link_idx].find('a')['href']
 			xtname = ['.txt']
-			if os.path.splitext(txt_link)[1] in xtname:
-				txt_link = 'https://www.sec.gov' + txt_link
-				return txt_link
-			else:
+			if os.path.splitext(txt_link)[1] not in xtname:
 				return False
+			txt_link = f'https://www.sec.gov{txt_link}'
+			return txt_link
 		except IndexError:
 			return False
 
@@ -166,16 +157,14 @@ class GetFilings:
 		s = BS(html)
 		try:
 			xl_link = s.find_all('td', {'colspan': '2'})[0].find_all('a')[1]['href']
-			link = 'https://www.sec.gov' + xl_link
-			return link
+			return f'https://www.sec.gov{xl_link}'
 		except IndexError:
 			return False
 			
 	def get_date(self, html):
 		s = BS(html)
 		try:
-			date = s.find_all('div', {'class': 'formGrouping'})[1].find_all('div')[1].text
-			return date
+			return s.find_all('div', {'class': 'formGrouping'})[1].find_all('div')[1].text
 		except (IndexError, AttributeError):
 			return False
 
@@ -185,8 +174,7 @@ class GetFilings:
 			try:
 				self.filings['errors']['10-Q'].append('all')
 			except (KeyError, AttributeError):
-				self.filings['errors']['10-Q'] = []
-				self.filings['errors']['10-Q'].append('all')
+				self.filings['errors']['10-Q'] = ['all']
 			return False
 		dates = []
 		errors = {}
@@ -199,74 +187,60 @@ class GetFilings:
 			success[date] = []
 			if settings.GET_XML:
 				for i in range(1, 7):
-					link_xml = self.get_xml_file(html_txt, i)
-					if link_xml:
+					if link_xml := self.get_xml_file(html_txt, i):
 						self.filings['10q_xml'].append((link_xml, date))
 						try:
 							success[date].append((link_xml, date))
 						except (KeyError, AttributeError):
-							success[date] = []
-							success[date].append('xml')
-					elif not link_xml:
+							success[date] = ['xml']
+					else:
 						try:
 							errors[date].append('xml')
 						except (KeyError, AttributeError):
-							errors[date] = []
-							errors[date].append('xml')
+							errors[date] = ['xml']
 			if settings.GET_HTML:
-				link_html = self.get_html(html_txt)
-				if link_html:
+				if link_html := self.get_html(html_txt):
 					self.filings['10q_html'].append((link_html, date, 'html'))
 					try:
 						success[date].append('html')
 					except (KeyError, AttributeError):
-						success[date] = []
-						success[date].append('html')
-				elif not link_html:
+						success[date] = ['html']
+				else:
 					try:
 						errors[date].append('html')
 					except (KeyError, AttributeError):
-						errors[date] = []
-						errors[date].append('html')
+						errors[date] = ['html']
 			if settings.GET_TXT:
-				link_txt = self.get_txt(html_txt)
-				if link_txt:
+				if link_txt := self.get_txt(html_txt):
 					self.filings['10q_txt'].append((link_txt, date, 'txt'))
 					try:
 						success[date].append('txt')
 					except (KeyError, AttributeError):
-						success[date] = []
-						success[date].append('txt')
-				elif not link_txt:
+						success[date] = ['txt']
+				else:
 					try:
 						errors[date].append('txt')
 					except (KeyError, AttributeError):
-						errors[date] = []
-						errors[date].append('txt')
+						errors[date] = ['txt']
 		if settings.GET_XL:
-			count = 0
-			for link_val in self.filings['10q_xl_list']:
+			for count, link_val in enumerate(self.filings['10q_xl_list']):
 				r = requests.get(link_val)
 				html_txt = r.text
-				link_xl = self.get_xl(html_txt)
-				if link_xl:
+				if link_xl := self.get_xl(html_txt):
 					self.filings['10q_xl'].append((link_xl, dates[count], 'xl'))
 					try:
 						success[dates[count]].append('xl')
 					except (KeyError, AttributeError):
-						success[dates[count]] = []
-						success[dates[count]].append('xl')
-				elif not link_xl:
+						success[dates[count]] = ['xl']
+				else:
 					try:
 						errors[dates[count]].append('xl')
 					except (KeyError, AttributeError):
-						errors[dates[count]] = []
-						errors[dates[count]].append('xl')
-				count += 1
-		if len(errors) > 0:
+						errors[dates[count]] = ['xl']
+		if errors:
 			self.filings['errors']['count'] += 1
 			self.filings['errors']['10-Q'] = errors
-		if len(success) > 0:
+		if success:
 			self.filings['success']['count'] += 1
 			self.filings['success']['10-Q'] = success
 

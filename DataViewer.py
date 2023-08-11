@@ -51,7 +51,7 @@ class DataView:
 						date_str += str(i)
 						date_str += '\t\t'
 					for bk in base_keys:
-						if base[rk]['val'][bk] == None:
+						if base[rk]['val'][bk] is None:
 							continue
 						if isinstance(base[rk]['val'][bk], float):
 							val_str += str(base[rk]['val'][bk])
@@ -89,8 +89,5 @@ class DataView:
 		roles_with_fact = []
 		for i in all_role_keys:
 			base = self.data[cat]['roles'][i]['unique']
-			for b in base:
-				if fact == b[1]:
-					roles_with_fact.append(i)
-		roles_with_fact = list(set(roles_with_fact))
-		return roles_with_fact
+			roles_with_fact.extend(i for b in base if fact == b[1])
+		return list(set(roles_with_fact))

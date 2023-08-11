@@ -13,36 +13,26 @@ if not os.path.exists(settings.EXTRACT_LOG_FILE_PATH):
 def add_scrape_data(symbol, scrape_data, complete):
 	"""Add data regarding scrape to scrape log."""
 	
-	if complete:
-		complete_key = 'complete'
-	else:
-		complete_key = 'incomplete'
+	complete_key = 'complete' if complete else 'incomplete'
 	data_log = pickle.load(open(settings.SCRAPE_LOG_FILE_PATH, "rb"))
 	try:
 		data_log[symbol]
 		data_log[symbol][complete_key] = scrape_data
 	except KeyError:
-		data_log[symbol] = {}
-		data_log[symbol]['complete'] = None
-		data_log[symbol]['incomplete'] = None
+		data_log[symbol] = {'complete': None, 'incomplete': None}
 		data_log[symbol][complete_key] = scrape_data
 	pickle.dump(data_log, open(settings.SCRAPE_LOG_FILE_PATH, "wb"))
 
 def add_extract_data(symbol, extract_data, complete):
 	"""Add data regarding scrape or extract to master log."""
 	
-	if complete:
-		complete_key = 'complete'
-	else:
-		complete_key = 'incomplete'
+	complete_key = 'complete' if complete else 'incomplete'
 	data_log = pickle.load(open(settings.EXTRACT_LOG_FILE_PATH, "rb"))
 	try:
 		data_log[symbol]
 		data_log[symbol][complete_key].append(extract_data)
 	except KeyError:
-		data_log[symbol] = {}
-		data_log[symbol]['complete'] = []
-		data_log[symbol]['incomplete'] = []
+		data_log[symbol] = {'complete': [], 'incomplete': []}
 		data_log[symbol][complete_key].append(extract_data)
 	pickle.dump(data_log, open(settings.EXTRACT_LOG_FILE_PATH, "wb"))
 
@@ -55,9 +45,5 @@ def check_if_extracted(symbol, date):
 		not_extracted = data_log[symbol]['incomplete']
 	except KeyError:
 		return False
-	if date in extracted:
-		return True
-	if date in not_extracted:
-		return True
-	return False
+	return True if date in extracted else date in not_extracted
 
