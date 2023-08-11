@@ -18,7 +18,7 @@ class ExtractFilingData:
 		self.ftype = ftype
 		self.symbol = None
 		self.data = OrderedDict()
-		
+
 		self.ins_sp = None
 		self.schema_sp = None
 		self.cal_sp = None
@@ -26,9 +26,9 @@ class ExtractFilingData:
 		self.lab_sp = None
 		self.pre_sp = None
 		self.xl_pd = None
-		
+
 		self.xbrl_year = None
-		
+
 		self.format_data = {
 					'quarter': None,
 					'year': None,
@@ -36,7 +36,7 @@ class ExtractFilingData:
 					'symbol': None,
 					'ftype': None,
 				   }
-		
+
 		print("Extract contents from: {0}|{1}|{2}".format(self.ticker, self.date, self.ftype))
 		self.create_data_segments()
 		self.load_files()
@@ -56,8 +56,6 @@ class ExtractFilingData:
 								       self.format_data['year'],
 								       self.format_data['quarter'],
 								       self.format_data['ftype'])
-		elif self.data['error'] == True:
-			pass
 		
 	def create_data_segments(self):
 		"""Create the data segment dictionaries."""
@@ -75,7 +73,7 @@ class ExtractFilingData:
 		
 		with open(fname, 'r') as f:
 			tmp = BS(f)
-		
+
 		pre_found = tmp.find(re.compile('presentation[lL]ink'))
 		def_found = tmp.find(re.compile('definition[lL]ink'))
 		cal_found = tmp.find(re.compile('calculation[lL]ink'))
@@ -83,27 +81,22 @@ class ExtractFilingData:
 		sch_found = tmp.find(re.compile('roletype'))
 		ins_found = tmp.find(re.compile('context'))
 		tmp_found_list = [pre_found, def_found, cal_found, sch_found, ins_found, lab_found]
-		found_list = []
-		for fl in tmp_found_list:
-			if fl:
-				found_list.append(fl)
-				
-		if len(found_list) == 1:
-			tmp_fl = found_list[0]
-			if tmp_fl == pre_found:
-				return 'pre'
-			if tmp_fl == def_found:
-				return 'def'
-			if tmp_fl == lab_found:
-				return 'lab'
-			if tmp_fl == cal_found:
-				return 'cal'
-			if tmp_fl == sch_found:
-				return 'schema'
-			if tmp_fl == ins_found:
-				return 'ins'
-		else:
+		found_list = [fl for fl in tmp_found_list if fl]
+		if len(found_list) != 1:
 			return found_list
+		tmp_fl = found_list[0]
+		if tmp_fl == pre_found:
+			return 'pre'
+		if tmp_fl == def_found:
+			return 'def'
+		if tmp_fl == lab_found:
+			return 'lab'
+		if tmp_fl == cal_found:
+			return 'cal'
+		if tmp_fl == sch_found:
+			return 'schema'
+		if tmp_fl == ins_found:
+			return 'ins'
 
 	def load_files(self):
 		"""Load all data files and store in variables."""
@@ -119,14 +112,13 @@ class ExtractFilingData:
 		tot_len = sym_len + date_len
 		required = ['pre', 'lab', 'cal', 'ins']
 		found = []
-		not_found = []
 		for x in files:
 			spli_t = os.path.splitext(x)[0]
 			ext = spli_t[tot_len:]
-			
+
 			fname = '{0}/{1}'.format(fpath, x)
 			ftype = self.validate_file(fname)
-			
+
 			if isinstance(ftype, list):
 				continue
 
@@ -156,10 +148,8 @@ class ExtractFilingData:
 					self.pre_sp = BS(f)
 				found.append('pre')
 
-		for i in required:
-			if i not in found:
-				not_found.append(i)
-		if len(not_found) > 0:
+		not_found = [i for i in required if i not in found]
+		if not_found:
 			self.data['error'] = True
 			return False
 		
@@ -183,7 +173,7 @@ class ExtractFilingData:
 				self.xbrl_year = str(year)
 			if year == 2010:
 				self.xbrl_year = '2009'
-			if year == 2015:
+			elif year == 2015:
 				self.xbrl_year = '2014'
 			return True
 		except:
@@ -256,8 +246,7 @@ class ExtractFilingData:
 		"""Remove spaces and non-alphanumeric characters 
 		   from a string."""
 		
-		cleaned_str = re.sub('[^0-9a-zA-Z]+', '', try_str)
-		return cleaned_str
+		return re.sub('[^0-9a-zA-Z]+', '', try_str)
 	
 	def find_label(self, try_str, get_full=92):
 		"""Find label from a string as exists in the populated
@@ -281,7 +270,7 @@ class ExtractFilingData:
 						else:
 							label_list.append((key_ref[key_num], i[:get_full]))
 		label_list = list(set(label_list))
-		if len(label_list) == 0:
+		if not label_list:
 			try:
 				label_list = self.find_label(try_str[:-1])
 			except RuntimeError:
@@ -315,8 +304,12 @@ class ExtractFilingData:
 		for i in ins_keys:
 			if i in html_string:
 				pfx = i
-		if not '_' in html_string and not ':' in html_string and not '-' in html_string:
-			if pfx == None:
+		if (
+			'_' not in html_string
+			and ':' not in html_string
+			and '-' not in html_string
+		):
+			if pfx is None:
 				return None
 		return pfx
 
@@ -327,24 +320,19 @@ class ExtractFilingData:
 		ins_keys = self.data[ins]['facts'].keys()
 		tmp_str = html_string
 		while True:
-			pfx = re.search('([^\W_]|[-])*', tmp_str).group(0)
+			pfx = re.search('([^\W_]|[-])*', tmp_str)[0]
 			if len(tmp_str) == 0:
 				return False
+			tmp_str = tmp_str[len(pfx)+1:]
 			if pfx in ins_keys:
-				tmp_str = tmp_str[len(pfx)+1:]
 				break
-			else:
-				tmp_str = tmp_str[len(pfx)+1:]	
 		to_use = re.search('[^\W_]*', tmp_str)
-		return to_use.group(0)
+		return to_use[0]
 		
 	def get_lineage(self, roots, from_to_list, ele, lineage_list=None):
 		"""Get the lookup location on the tree for a specific element."""
 		
-		if lineage_list:
-			lineage = lineage_list
-		else:
-			lineage = [ele]
+		lineage = lineage_list if lineage_list else [ele]
 		cur_ele = ele
 		for i in roots:
 			if cur_ele == i[1]:
@@ -369,7 +357,7 @@ class ExtractFilingData:
 		"""Generate dictionary path and execute code to create or assign
 		   values to dictionary."""
 		
-		if cat == 'pre' or cat == 'cal':
+		if cat in ['pre', 'cal']:
 			base_str = '{0}.data["{1}"]["roles"]["{2}"]["tree"]'.format(ref_self, cat, role_name)
 		elif cat == 'xl':
 			base_str = '{0}.data["{1}"]["{2}"]["tree"]'.format(ref_self, cat, role_name)
@@ -378,23 +366,23 @@ class ExtractFilingData:
 				next_ele = "['{0}']".format(i)
 				base_str += next_ele
 				if not self.check_path_exist(base_str):
-					exec(base_str + ' = OrderedDict()')
+					exec(f'{base_str} = OrderedDict()')
 					next_ele = '["sub"]'
 					base_str += next_ele
 					if not self.check_path_exist(base_str):
-						exec(base_str + ' = OrderedDict()')
+						exec(f'{base_str} = OrderedDict()')
 				else:
 					base_str += '["sub"]'
 			elif i == link_eles[-1]:
 				next_ele = '["{0}"]'.format(i)
 				base_str += next_ele
 				if not self.check_path_exist(base_str):
-					exec(base_str + " = OrderedDict()")
+					exec(f"{base_str} = OrderedDict()")
 				pfx_str = base_str + '["pfx"] = "{0}"'.format(pfx)
 				if not self.check_path_exist(pfx_str):
 					exec(pfx_str)
-				if not self.check_path_exist(base_str + "['sub']"):
-					exec(base_str + '["sub"] = OrderedDict()')
+				if not self.check_path_exist(f"{base_str}['sub']"):
+					exec(f'{base_str}["sub"] = OrderedDict()')
 				if cat == 'pre' and ctx:
 					if isinstance(ctx, (unicode, str)):
 						try:
@@ -452,10 +440,10 @@ class ExtractFilingData:
 				next_ele = '["{0}"]'.format(i)
 				base_str += next_ele
 				if not self.check_path_exist(base_str):
-					exec(base_str + ' = OrderedDict()')
+					exec(f'{base_str} = OrderedDict()')
 					base_str += "['sub']"
 					if not self.check_path_exist(base_str):
-						exec(base_str + ' = OrderedDict()')
+						exec(f'{base_str} = OrderedDict()')
 				else:
 					base_str += "['sub']"
 
@@ -484,7 +472,7 @@ class ExtractFilingData:
 						date_str += str(i)
 						date_str += '\t\t'
 					for bk in base_keys:
-						if base[rk]['val'][bk] == None:
+						if base[rk]['val'][bk] is None:
 							continue
 						if isinstance(base[rk]['val'][bk], float):
 							val_str += str(base[rk]['val'][bk])
@@ -519,11 +507,8 @@ class ExtractFilingData:
 		roles_with_fact = []
 		for i in all_role_keys:
 			base = self.data[cat]['roles'][i]['unique']
-			for b in base:
-				if fact == b[1]:
-					roles_with_fact.append(i)
-		roles_with_fact = list(set(roles_with_fact))
-		return roles_with_fact
+			roles_with_fact.extend(i for b in base if fact == b[1])
+		return list(set(roles_with_fact))
 		
 	def find_pfx_in_ins(self, fact):
 		"""Returns pfx of fact in ins given no prefix."""
@@ -548,23 +533,17 @@ class ExtractFilingData:
 		"""Get period type."""
 		
 		period = tag.find(name=re.compile('period'))
-		if period.find(name=re.compile('instant')):
-			return 'instant'
-		else:
-			return 'duration'
+		return 'instant' if period.find(name=re.compile('instant')) else 'duration'
 		
 	def get_period(self, tag, p_type):
 		"""Get period time."""
 		
 		period = tag.find(name=re.compile('period'))
 		if p_type == 'instant':
-			p_content = period.find(name=re.compile('instant')).text
-			return p_content
-		else:
-			p_start = period.find(name=re.compile('start[dD]ate')).text
-			p_end = period.find(name=re.compile('end[dD]ate')).text
-			p_content = (p_start, p_end)
-			return p_content
+			return period.find(name=re.compile('instant')).text
+		p_start = period.find(name=re.compile('start[dD]ate')).text
+		p_end = period.find(name=re.compile('end[dD]ate')).text
+		return p_start, p_end
 		
 	def build_context_ref_list(self):
 		"""Build the context reference list. Each context has a period 
@@ -575,8 +554,7 @@ class ExtractFilingData:
 		ctx_raw = self.ins_sp.find_all(name=re.compile('context'))
 		for ctx in ctx_raw:
 			ctx_id = self.get_context_id(ctx)
-			exmem = ctx.find(name=re.compile('explicitmember'))
-			if exmem:
+			if exmem := ctx.find(name=re.compile('explicitmember')):
 				exmem_txt = exmem.text
 			else:
 				exmem_txt = None
@@ -595,8 +573,7 @@ class ExtractFilingData:
 				try:
 					self.data['ins']['contexts'][ctx_id]['exmem'].append(exmem_txt)
 				except KeyError:
-					self.data['ins']['contexts'][ctx_id]['exmem'] = []
-					self.data['ins']['contexts'][ctx_id]['exmem'].append(exmem_txt)
+					self.data['ins']['contexts'][ctx_id]['exmem'] = [exmem_txt]
 				
 	def get_pfx(self, html_string):
 		"""Extract prefix from HTML string."""
@@ -604,7 +581,7 @@ class ExtractFilingData:
 		html_string = str(html_string)
 		pfx = re.search('[A-zA-Z0-9]+[^:_]*', html_string)
 		try:
-			return pfx.group(0)
+			return pfx[0]
 		except AttributeError:
 			return None
 
@@ -614,7 +591,7 @@ class ExtractFilingData:
 		html_string = str(html_string)
 		name = re.search('(?<=[:_])[A-zA-Z0-9][^\s_]*', html_string)
 		try:
-			return name.group(0)
+			return name[0]
 		except AttributeError:
 			return None
 
@@ -698,7 +675,7 @@ class ExtractFilingData:
 	def conv_date_to_int(self, date):
 		"""Convert date str to int."""
 		
-		year = int(date[0:4])
+		year = int(date[:4])
 		month = int(date[5:7])
 		day = int(date[8:])
 		return (year, month, day)
@@ -741,14 +718,12 @@ class ExtractFilingData:
 			base_zero = '0' * (abs(decimal))
 			base_str += base_zero
 			conv_num = float(base_str)
-			val_conv = val / conv_num
-			return val_conv
+			return val / conv_num
 		elif decimal > 0:
 			base_zero = '0' * (abs(decimal))
 			base_str += base_zero
 			conv_num = float(base_str)
-			val_conv = val * conv_num
-			return val_conv
+			return val * conv_num
 		
 	
 	def build_ins(self):
@@ -805,11 +780,11 @@ class ExtractFilingData:
 			loc_href = i.get('xlink:href')
 			lnxt_names = []
 			loc_next = i.find_next()
-			if loc_next == None:
+			if loc_next is None:
 				break
 			keep_going = True
 			while loc_next.name not in ['xlink:loc', 'link:loc']:
-				if loc_next == None:
+				if loc_next is None:
 					keep_going = False
 				elif loc_next.name in ['xlink:labelArc', 'xlink:labelarc']:
 					loc_next = loc_next.find_next()
@@ -819,7 +794,7 @@ class ExtractFilingData:
 					if lnxt_name not in lnxt_names:
 						lnxt_names.append(lnxt_name)
 				loc_next = loc_next.find_next()
-				if loc_next == None:
+				if loc_next is None:
 					break
 			loc_href = os.path.splitext(loc_href)[1]
 			if '#' not in loc_href:
@@ -875,16 +850,14 @@ class ExtractFilingData:
 				try:
 					reg_xt = '(?<={0}[_])[^\W_]*'.format(lab_pfx)
 					reg_xt_ex = re.search(reg_xt, tmp_lab_store)
-					lab_name = reg_xt_ex.group(0)
+					lab_name = reg_xt_ex[0]
 				except AttributeError:
 					try:
 						reg_xt = '(?<={0})[^\W_]*'.format(lab_pfx.upper())
 						reg_xt_ex = re.search(reg_xt, tmp_lab_store)
-						name_to = reg_xt_ex.group(0)
+						name_to = reg_xt_ex[0]
 					except AttributeError:
 						pass
-			if not lab_name:
-				pass
 			try:
 				self.data['lab'][lab_pfx]
 			except KeyError:

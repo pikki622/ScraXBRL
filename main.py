@@ -71,7 +71,7 @@ class ScrapeAndExtract:
 
 		xml_10q_path = "{0}/{1}/10-Q/xml/".format(settings.EXTRACTED_DATA_PATH, symbol)
 		xml_10k_path = "{0}/{1}/10-K/xml/".format(settings.EXTRACTED_DATA_PATH, symbol)
-		
+
 		#10-Q Extract
 		for ql in q_list:
 			if logs.check_if_extracted(symbol, ql):
@@ -79,36 +79,30 @@ class ScrapeAndExtract:
 
 			if not os.path.exists("{0}/{1}".format(xml_10q_path, ql)):
 				os.makedirs("{0}/{1}".format(xml_10q_path, ql))
-				
+
 			ql_path = "{0}/{1}".format(xml_10q_path, ql)
-			
-			
+
+
 			try:
 				tmp_xe = XMLExtract.ExtractFilingData(symbol, ql, '10-Q')
 			except:
 				logs.add_extract_data(symbol, ql, False)
 				continue
-			
+
 			if settings.OUTPUT_PICKLE:
 				if tmp_xe.data['error'] == False:
 					pickle.dump(tmp_xe.data, open("{0}/{1}.p".format(ql_path, tmp_xe.format_str), "wb"))
 					logs.add_extract_data(symbol, ql, True)
-					pass
 				elif tmp_xe.data['error'] == True:
 					print('Error Extracting: {0}|{1}|{2}'.format(symbol, ql, '10-K'))
 					logs.add_extract_data(symbol, ql, False)
-					pass
-			if settings.OUTPUT_JSON:
-				pass
-			
-
 		for kl in k_list:
 			if logs.check_if_extracted(symbol, kl):
 				continue
-			
+
 			if not os.path.exists("{0}/{1}".format(xml_10k_path, kl)):
 				os.makedirs("{0}/{1}".format(xml_10k_path, kl))
-				
+
 			kl_path = "{0}/{1}".format(xml_10k_path, kl)
 
 			try:
@@ -116,18 +110,14 @@ class ScrapeAndExtract:
 			except:
 				logs.add_extract_data(symbol, ql, False)
 				continue
-			
+
 			if settings.OUTPUT_PICKLE:
 				if tmp_xe.data['error'] == False:
 					pickle.dump(tmp_xe.data, open("{0}/{1}.p".format(kl_path, tmp_xe.format_str), "wb"))
 					logs.add_extract_data(symbol, kl, True)
-					pass
 				elif tmp_xe.data['error'] == True:
 					print('Error Extracting: {0}|{1}|{2}'.format(symbol, kl, '10-K'))
 					logs.add_extract_data(symbol, kl, False)
-					pass
-			if settings.OUTPUT_JSON:
-				pass
 	
 	@staticmethod
 	def scrape_symbol(symbol):
